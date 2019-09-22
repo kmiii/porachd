@@ -1,0 +1,258 @@
+#!/bin/bash
+
+# Script de compresión a formato chd con procesado de audio
+# Creado por Carli (20.09.2019) para el equipo de plata o roms
+#
+# Este script a sido posible gracias a la investigación de los miembros de Plata o Roms
+#
+# Herramientas necesarias para el funcionamiento del script, mame-tools y lossywav
+#
+
+verde='\033[0;36m'
+blanco='\033[0m'
+rojo='\033[0;31m'
+
+clear
+echo -e $verde"######################################################################################"
+echo "#                                                                                    #"
+echo "#  porachd v1.0 : Herramienta de compresión a formato chd con procesado de audio     #"
+echo "#                                                                                    #"
+echo "#  Creado por el equipo de Plata o Roms (https://t.me/RaspberryPiEmuladores)         #"
+echo "#                                                                                    #"
+echo "#  Herramientas necesarias para el funcionamiento del script, mame-tools y lossywav  #"
+echo "#                                                                                    #"
+echo "######################################################################################"
+echo 
+echo
+echo -e $blanco
+read -p  "Entra el directorio donde estan los archivos bin/cue: " dir
+echo
+
+if [ -d "$dir" ]; 
+    then
+        cd "$dir"
+    else
+        echo -e $rojo"El directorio especificado no existe, especifica un directorio valido"
+        echo
+        exit 0
+fi
+
+#crea directorio de trabajo si no existe
+ConfigDir=chd
+if [ -d $ConfigDir ]; 
+then echo
+else
+mkdir $ConfigDir
+fi
+
+#Detectar si existen tracks de audio
+if [ -f *'(Track 02)'* ]; then
+    audio=audiosi
+    track="(Track 01)"
+elif [ -f *'(Track 2)'* ]; then
+    audio=audiosi
+    track="(Track 1)"
+else 
+    audio=audiono
+fi
+
+while true; do
+clear
+echo -e $verde"######################################################################################"
+echo "#                                                                                    #"
+echo "#  porachd v1.0 : Herramienta de compresión a formato chd con procesado de audio     #"
+echo "#                                                                                    #"
+echo "#  Creado por el equipo de Plata o Roms (https://t.me/RaspberryPiEmuladores)         #"
+echo "#                                                                                    #"
+echo "#  Herramientas necesarias para el funcionamiento del script, mame-tools y lossywav  #"
+echo "#                                                                                    #"
+echo "######################################################################################"
+echo 
+echo
+echo -e $blanco
+
+case $audio in
+    audiosi)
+    opciones (){
+    echo "directorio del juego: "$dir
+    echo 
+    echo "       1. CHD                 compresión: *       calidad audio: *****"
+    echo "       2. CHD lossywav        compresión: ***     calidad audio: ****"
+    echo "       3. CHD lossyhard       compresión: ****    calidad audio: ***"
+    echo "       4. CHD 8 bits          compresión: *****   calidad audio: *"
+    echo "       5. Salir"
+    echo
+}
+
+    opciones
+    read -p "Selecciona una opción: " menu
+        case $menu in
+        1)  #Comprime a chd
+            echo
+            echo 'Comprimiendo bin/cue a formato chd'
+            echo
+            for x in *.cue; do
+                chdman createcd -i "$x" -f -o "$ConfigDir/${x%.cue}.chd"
+            done
+            echo
+            echo 'Finalizado'
+            echo
+            echo 'Todo hecho...'
+            sleep 5
+            ;;
+        2)  #Comprime a chd con audio en lossywav
+            #Mueve el track 01 y el .cue al directorio de trabajo
+            if [ -f *"$track"* ]; then mv *"$track"* $ConfigDir/ ;fi
+            if [ -f *'cue'* ]; then mv *.cue $ConfigDir/ ;fi
+            #Convertir de bin a wav
+            echo
+            echo 'Convirtiendo archivos bin a wav'
+            for x in *.bin; do
+                ffmpeg -y -hide_banner -nostats -loglevel panic -f s16le -ar 44.1k -ac 2 -i "$x" -f wav -flags +bitexact -acodec pcm_s16le -ar 44100 -ac 2 "${x%.bin}.wav"
+            done
+            echo 'Finalizado'
+            echo
+            #Convertir de wav a lossywav
+            echo 'Convirtiendo archivos wav a lossywav'
+            echo
+            for x in *.wav; do
+                lossywav "$x" -o $ConfigDir/ -q X -D 2 -U 4 -m -a 4 -s h -A --feedback 3 --limit 15848
+            done
+            echo 'Finalizado'
+            echo
+            #Convertir de lossywav a bin
+            echo 'Convirtiendo archivos lossywav a bin'
+            cd $ConfigDir/
+            for x in *.lossy.wav; do
+                ffmpeg -y -hide_banner -nostats -loglevel panic -ac 2 -i "$x" -f s16le -ar 44.1k -ac 2 "${x%.lossy.wav}.bin"
+            done
+            echo 'Finalizado'
+            echo
+            #Comprime a chd
+            echo 'Comprimiendo bin/cue a formato chd'
+            echo
+            for x in *.cue; do
+                chdman createcd -i "$x" -f -o "${x%.cue}.lossy.chd"
+            done
+            echo 'Finalizado'
+            echo
+            # restaura archivos originales y elimina sobrantes
+            echo 'Restaurando archivos originales y eliminando los archivos de trabajo'
+            mv *"$track"* ..
+            mv *.cue ..
+            rm *.bin
+            rm *.wav
+            cd ..
+            rm *.wav
+            echo 'Todo hecho...'
+            sleep 5
+            ;;
+        3)  #Comprime a chd con audio en lossywav parametros hard
+            #Mueve el track 01 y el .cue al directorio de trabajo
+            if [ -f *"$track"* ]; then mv *"$track"* $ConfigDir/ ;fi
+            if [ -f *'cue'* ]; then mv *.cue $ConfigDir/ ;fi
+            #Convertir de bin a wav
+            echo
+            echo 'Convirtiendo archivos bin a wav'
+            for x in *.bin; do
+                ffmpeg -y -hide_banner -nostats -loglevel panic -f s16le -ar 44.1k -ac 2 -i "$x" -f wav -flags +bitexact -acodec pcm_s16le -ar 44100 -ac 2 "${x%.bin}.wav"
+            done
+            echo 'Finalizado'
+            echo
+            #Convertir de wav a lossywav
+            echo 'Convirtiendo archivos wav a lossywav'
+            echo
+            for x in *.wav; do
+                lossywav "$x" -o $ConfigDir/ -q X -D 1 -U 2 -m -a 7 -s h -A --feedback 0 --limit 12500
+            done
+            echo 'Finalizado'
+            echo
+            #Convertir de lossywav a bin
+            echo 'Convirtiendo archivos lossywav a bin'
+            cd $ConfigDir/
+            for x in *.lossy.wav; do
+                ffmpeg -y -hide_banner -nostats -loglevel panic -ac 2 -i "$x" -f s16le -ar 44.1k -ac 2 "${x%.lossy.wav}.bin"
+            done
+            echo 'Finalizado'
+            echo
+            #Comprime a chd
+            echo 'Comprimiendo bin/cue a formato chd'
+            echo
+            for x in *.cue; do
+                chdman createcd -i "$x" -f -o "${x%.cue}.lossyhard.chd"
+            done
+            echo 'Finalizado'
+            echo
+            # restaura archivos originales y elimina sobrantes
+            echo 'Restaurando archivos originales y eliminando los archivos de trabajo'
+            mv *"$track"* ..
+            mv *.cue ..
+            rm *.bin
+            rm *.wav
+            cd ..
+            rm *.wav
+            echo 'Todo hecho...'
+            sleep 5
+            ;;         
+        4)  #Comprime a chd con audio en 8 bits
+            #Mueve el track 01 y el .cue al directorio de trabajo
+            if [ -f *"$track"* ]; then mv *"$track"* $ConfigDir/ ;fi
+            if [ -f *'cue'* ]; then mv *.cue $ConfigDir/ ;fi
+
+            #Convertir de bin a wav de 8 bits
+            echo
+            echo 'Convirtiendo archivos bin a wav 8 bits'
+            for x in *.bin; do
+                ffmpeg -y -hide_banner -nostats -loglevel panic -f s16le -ar 44.1k -ac 2 -i "$x" -f wav -flags +bitexact -acodec pcm_u8 -ar 44100 -ac 2 "$ConfigDir/${x%.bin}.wav"
+            done
+            echo 'Finalizado'
+            echo
+            #Convertir de wav a bin de 16 bits
+            cd $ConfigDir
+            echo 'Convirtiendo archivos wav a bin 16 bits'
+            for x in *.wav; do
+                ffmpeg -y -hide_banner -nostats -loglevel panic -ac 2 -i "$x" -f s16le -ar 44.1k -ac 2 "${x%.wav}.bin"
+            done
+            echo 'Finalizado'
+            echo
+            #Comprime a chd
+            echo 'Comprimiendo bin/cue a formato chd'
+            echo
+            for x in *.cue; do
+                chdman createcd -i "$x" -f -o "${x%.cue}.8bits.chd"
+            done
+            echo 'Finalizado'
+            echo
+            # restaura archivos originales y elimina sobrantes
+            echo 'Restaurando archivos originales y eliminando los archivos de trabajo'
+            mv *"$track"* ..
+            mv *.cue ..
+            rm *.bin
+            rm *.wav
+            cd ..
+            echo 'Todo hecho...'
+            sleep 5
+            ;;
+        5)
+            exit 0
+            ;;
+        esac
+    ;;
+
+    audiono)
+        echo
+        echo 'No se han detectado archivos de audio, comprimiendo a chd estandar'
+        echo
+        #Comprime a chd
+        echo 'Comprimiendo bin/cue a formato chd'
+        echo
+        for x in *.cue; do
+            chdman createcd -i "$x" -f -o "$ConfigDir/${x%.cue}.chd"
+        done
+        echo 'Finalizado'
+        echo
+        echo 'Todo hecho...'
+        exit 0
+        ;;
+esac
+done
